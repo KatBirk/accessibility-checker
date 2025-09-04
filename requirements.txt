@@ -1,2 +1,4 @@
-selenium
-axe-selenium-python
+pytest-playwright
+playwright
+axe_core_python
+

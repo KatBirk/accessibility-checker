@@ -1,16 +1,18 @@
-from selenium import webdriver
-from axe_selenium_python import Axe
+from playwright.sync_api import sync_playwright
+from axe_core_python.sync_playwright import Axe
+import json
 
-def test_google():
-    driver = webdriver.Firefox()
-    driver.get("https://www.berkshirehathaway.com/")
-    axe = Axe(driver)
-    # Inject axe-core javascript into page.
-    axe.inject()
-    # Run axe accessibility checks.
-    results = axe.run()
-    # Write results to file
-    axe.write_results(results["violations"], 'a11y.json')
-    driver.close()
+axe = Axe()
 
-test_google()
+with sync_playwright() as playwright:
+    browser = playwright.chromium.launch()
+    page = browser.new_page()
+    page.goto("https://www.berkshirehathaway.com/")
+    results = axe.run(page)
+    browser.close()
+    violations = results["violations"]
+    with open('violations.json'.json', 'w') as f:
+        json.dump(violations, f, indent=4)
+
+
+print(f"{len(violations)} violations found.")
