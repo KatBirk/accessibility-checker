@@ -6,6 +6,10 @@ import tkinter as tk
 from tkinter import *
 from tkinter import ttk
 from tkinter import Button
+import webbrowser
+import threading
+import http.server
+import socketserver
 
 websiteToBESCANNED = ""
 violations = 0
@@ -22,6 +26,18 @@ def testWebsite():
         violations = results["violations"]
         with open("violations.json", "w") as f:
             json.dump(violations, f, indent=4)
+
+        html_url = f"http://localhost:8000/report.html"
+        webbrowser.open(html_url)
+
+
+
+def start_server(port=8000):
+    handler = http.server.SimpleHTTPRequestHandler
+    httpd = socketserver.TCPServer(("", port), handler)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    return httpd
 
 def start_progress():
     progress.start()
@@ -46,6 +62,8 @@ w.pack()
 
 progress = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate")
 progress.pack(pady=20)
+
+server = start_server(port=8000)  # serves current folder
 
 # Button to start progress
 start_button = tk.Button(root, text="Start Progress", command=start_progress)
