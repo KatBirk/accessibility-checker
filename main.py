@@ -10,6 +10,7 @@ from tkinter import Button
 websiteToBESCANNED = ""
 violations = 0
 
+
 def testWebsite():
     with sync_playwright() as playwright:
         browser = playwright.firefox.launch()
@@ -23,6 +24,7 @@ def testWebsite():
         with open("violations.json", "w") as f:
             json.dump(violations, f, indent=4)
 
+
 def start_progress():
     progress.start()
 
@@ -31,7 +33,7 @@ def start_progress():
         progress["value"] = i
         root.update_idletasks()
     testWebsite()
-    for i in range(95,101):
+    for i in range(95, 101):
         time.sleep(0.03)
         progress["value"] = i
         root.update_idletasks()
@@ -41,7 +43,7 @@ def start_progress():
 
 
 root = tk.Tk()
-w = Label(root, text="AAaS!")
+w = Label(root, text="AaaS!")
 w.pack()
 
 progress = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate")
