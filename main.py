@@ -6,39 +6,55 @@ import tkinter as tk
 from tkinter import *
 from tkinter import ttk
 from tkinter import Button
+import logging
+from stopwatch import Stopwatch
+import sitemap
 
+logger = logging.getLogger("main")
+logging.basicConfig(filename='myapp.log', level=logging.DEBUG)
+
+stopwatch = Stopwatch()
 websiteToBESCANNED = ""
 violations = 0
+vioCount = 0
 
-
-def testWebsite():
+def testWebsite(url):
     with sync_playwright() as playwright:
         browser = playwright.firefox.launch()
         page = browser.new_page()
-        global websiteToBESCANNED
-        page.goto(websiteToBESCANNED)
+        page.goto(url)
         results = axe.run(page)
         browser.close()
         global violations
         violations = results["violations"]
         with open("violations.json", "w") as f:
             json.dump(violations, f, indent=4)
+        return len(violations)
+
 
 
 def start_progress():
+    logger.debug("progress bar started")
     progress.start()
+    global vioCount
+    vioCount = 0
+    data = sitemap.sitemapsFromUrl(websiteToBESCANNED)
+    data = data[-100:]
 
-    for i in range(95):
-        time.sleep(0.06)
-        progress["value"] = i
-        root.update_idletasks()
-    testWebsite()
-    for i in range(95, 101):
-        time.sleep(0.03)
-        progress["value"] = i
-        root.update_idletasks()
+    for i, url in enumerate(data):
+        logger.debug(url)
 
-    laban.config(text=f"{len(violations)} violations found.")
+        stopwatch.start()
+        vioCount = vioCount + testWebsite(url)
+        stopwatch.stop()
+        percentage = (i + 1) * 100 / len(data)
+        # Update GUI elements
+        progress["value"] = percentage
+        laban.config(text=f"estimated time:{int(((len(data)*stopwatch.elapsed-(i*stopwatch.elapsed)))/60)} min ")
+        stopwatch.reset()
+        root.update_idletasks()  # Ensures GUI updates are drawn
+
+    laban.config(text=f"{vioCount} violations found.")
     progress.stop()
 
 
@@ -55,14 +71,14 @@ start_button.pack(pady=10)
 
 axe = Axe()
 urls = [
-    "https://www.google.com/",
-    "https://www.berkshirehathaway.com/",
-    "https://www.microsoft.com/",
-    "https://www.playwright.dev/",
-    "https://www.op.europa.eu/en/web/webguide/",
-    "https://www.github.com/",
-    "https://www.wikipedia.org/",
-    "https://www.sdu.dk/en",
+    "https://www.google.com",
+    "https://www.berkshirehathaway.com",
+    "https://www.microsoft.com",
+    "https://www.playwright.dev",
+    "https://www.op.europa.eu/en/web/webguide",
+    "https://www.github.com",
+    "https://www.wikipedia.org",
+    "https://www.sdu.dk",
 ]
 label = tk.Label(root, text="Selected Item: ")
 label.pack(pady=10)

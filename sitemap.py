@@ -1,16 +1,21 @@
 import requests
+import logging
 import xml.etree.ElementTree as ET
 import re
+logger = logging.getLogger("sitemap")
 
 # Regex for detection of urls
 regexHttps = "https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)"
+
+def deleteDuplicates(sitemaps):
+    sitemaps
 
 
 def extractUrlsFromSitemapIndex(sitemap, url, recursionOverflow):
     sitemapLinks = []
 
     # Asuming that infinite loop with 100+ sitemaps nestings
-    if recursionOverflow >= 100:
+    if recursionOverflow >= 3:
         return sitemapLinks
 
     links = re.findall(regexHttps, (requests.get(sitemap).text))
@@ -29,7 +34,7 @@ def extractUrlsFromSitemapIndex(sitemap, url, recursionOverflow):
 
 
 def sitemapsFromUrl(url):
-    clankerUrl = url + "robots.txt"
+    clankerUrl = url + "/robots.txt"
     clankerData = requests.get(clankerUrl)
     robotData = clankerData.text.splitlines()
     sitemaps = []
@@ -51,8 +56,7 @@ def sitemapsFromUrl(url):
                             extractUrlsFromSitemapIndex(url + sitemapssss[j][1], url, 0)
                         )
 
-    # print(sitemaps) #uncomment for debugging
+    sitemaps = list(set(sitemaps)) # Removes duplicates
+    logger.info(sitemaps) #uncomment for debugging
+    print(len(sitemaps)) #uncomment for debugging
     return sitemaps
-
-
-sitemapsFromUrl("https://www.sdu.dk/")
