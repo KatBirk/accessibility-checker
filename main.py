@@ -5,28 +5,41 @@ import time
 import tkinter as tk
 from tkinter import *
 from tkinter import ttk
+import logging
+from stopwatch import Stopwatch
+import sitemap
+from tkinter import Button, messagebox
 import webbrowser
 import threading
 import http.server
 import socketserver
-from tkinter import Button, messagebox
+
+logger = logging.getLogger("main")
+logging.basicConfig(filename="myapp.log", level=logging.DEBUG)
+
+# Used for time estimation
+stopwatch = Stopwatch()
+
 
 
 websiteToBESCANNED = ""
 violations = 0
+vioCount = 0
 
-def testWebsite():
+
+def testWebsite(url):
     with sync_playwright() as playwright:
         browser = playwright.firefox.launch()
         page = browser.new_page()
-        global websiteToBESCANNED
-        page.goto(websiteToBESCANNED)
+        page.goto(url)
         results = axe.run(page)
         browser.close()
-        global violations
+        global violationsparser
         violations = results["violations"]
         with open("violations.json", "w") as f:
             json.dump(violations, f, indent=4)
+        return len(violations)
+
 
         html_url = f"http://localhost:8000/report.html"
         webbrowser.open(html_url)
@@ -41,74 +54,83 @@ def start_server(port=8000):
     return httpd
 
 def start_progress():
+    logger.debug("progress bar started")
     progress.start()
+    global vioCount
+    vioCount = 0
+    data = sitemap.sitemapsFromUrl(websiteToBESCANNED)
+    data = data[-100:]
 
-    for i in range(95):
-        time.sleep(0.06)
-        progress["value"] = i
-        root.update_idletasks()
-    testWebsite()
-    for i in range(95,101):
-        time.sleep(0.03)
-        progress["value"] = i
-        root.update_idletasks()
+    for i, url in enumerate(data):
+        logger.debug(url)
+        stopwatch.start()
+        vioCount = vioCount + testWebsite(url)
+        stopwatch.stop()
+        percentage = (i + 1) * 100 / len(data)
+        # Update GUI elements
+        progress["value"] = percentage
+        laban.config(
+            text=f"estimated time:{int(((len(data)*stopwatch.elapsed-(i*stopwatch.elapsed)))/60)} min "
+        )
+        stopwatch.reset()
+        root.update_idletasks()  # Ensures GUI updates are drawn
 
-    laban.config(text=f"{len(violations)} violations found.")
+    laban.config(text=f"{vioCount} violations found.")
     progress.stop()
 
 def show_main_window(version="free"):
     global root, progress, start_button, axe, urls, label, combo_box, laban
-    
+
     root = tk.Tk()
-    
+
     if version == "paid":
         root.title("AAaS - Accessibility as a Service (Paid Version)")
     else:
         root.title("AAaS - Accessibility as a Service (Free Version)")
-    
+
     menubar = tk.Menu(root)
     root.config(menu=menubar)
-    
+
     file_menu = tk.Menu(menubar, tearoff=0)
     menubar.add_cascade(label="File", menu=file_menu)
-    
+
     def logout():
         root.quit()
         root.destroy()
         import login
         login.show_login()
-    
+
     def exit_app():
         root.quit()
         root.destroy()
-    
+
     file_menu.add_command(label="Logout", command=logout)
     file_menu.add_separator()
     file_menu.add_command(label="Exit", command=exit_app)
-    
+
     help_menu = tk.Menu(menubar, tearoff=0)
     menubar.add_cascade(label="Help", menu=help_menu)
-    
+
     def show_about():
         about_text = "Accessibility as a Service\n\n" + \
                     "A tool for checking website accessibility\n" + \
                     "using Playwright and axe-core.\n\n" + \
                     f"Current Version: {version.upper()}"
         tk.messagebox.showinfo("About AAaS", about_text)
-    
+
     help_menu.add_command(label="About", command=show_about)
-    
+
     if version == "paid":
-        version_label = tk.Label(root, text="🌟 PAID VERSION 🌟", 
-                               font=("Arial", 12, "bold"), 
+        version_label = tk.Label(root, text="🌟 PAID VERSION 🌟",
+                               font=("Arial", 12, "bold"),
                                fg="gold", bg="darkgreen", padx=10, pady=5)
     else:
-        version_label = tk.Label(root, text="📝 FREE VERSION", 
-                               font=("Arial", 12, "bold"), 
+        version_label = tk.Label(root, text="📝 FREE VERSION",
+                               font=("Arial", 12, "bold"),
                                fg="white", bg="blue", padx=10, pady=5)
-    
+
     version_label.pack(pady=(5,10))
-    
+
     w = Label(root, text="AAaS!")
     w.pack()
 
@@ -148,7 +170,7 @@ def show_main_window(version="free"):
     def on_closing():
         root.quit()
         root.destroy()
-    
+
     root.protocol("WM_DELETE_WINDOW", on_closing)
     root.mainloop()
 
