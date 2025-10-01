@@ -11,12 +11,14 @@ from stopwatch import Stopwatch
 import sitemap
 
 logger = logging.getLogger("main")
-logging.basicConfig(filename='myapp.log', level=logging.DEBUG)
+logging.basicConfig(filename="myapp.log", level=logging.DEBUG)
 
+# Used for time estimation
 stopwatch = Stopwatch()
 websiteToBESCANNED = ""
 violations = 0
 vioCount = 0
+
 
 def testWebsite(url):
     with sync_playwright() as playwright:
@@ -32,7 +34,6 @@ def testWebsite(url):
         return len(violations)
 
 
-
 def start_progress():
     logger.debug("progress bar started")
     progress.start()
@@ -43,14 +44,15 @@ def start_progress():
 
     for i, url in enumerate(data):
         logger.debug(url)
-
         stopwatch.start()
         vioCount = vioCount + testWebsite(url)
         stopwatch.stop()
         percentage = (i + 1) * 100 / len(data)
         # Update GUI elements
         progress["value"] = percentage
-        laban.config(text=f"estimated time:{int(((len(data)*stopwatch.elapsed-(i*stopwatch.elapsed)))/60)} min ")
+        laban.config(
+            text=f"estimated time:{int(((len(data)*stopwatch.elapsed-(i*stopwatch.elapsed)))/60)} min "
+        )
         stopwatch.reset()
         root.update_idletasks()  # Ensures GUI updates are drawn
 

@@ -7,15 +7,12 @@ logger = logging.getLogger("sitemap")
 # Regex for detection of urls
 regexHttps = "https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)"
 
-def deleteDuplicates(sitemaps):
-    sitemaps
-
 
 def extractUrlsFromSitemapIndex(sitemap, url, recursionOverflow):
     sitemapLinks = []
 
     # Asuming that infinite loop with 100+ sitemaps nestings
-    if recursionOverflow >= 3:
+    if recursionOverflow >= 100:
         return sitemapLinks
 
     links = re.findall(regexHttps, (requests.get(sitemap).text))
@@ -33,30 +30,42 @@ def extractUrlsFromSitemapIndex(sitemap, url, recursionOverflow):
     return sitemapLinks
 
 
+# Uses regex instead of xml parsing, the trade off is performance for largely data source agnostic
 def sitemapsFromUrl(url):
+    sitemaps = []
+
+    # Remove last slash if exits
+    if url[-1] == '/':
+        url = url[:-1]
+
     clankerUrl = url + "/robots.txt"
     clankerData = requests.get(clankerUrl)
+
+    if !(clankerData.ok):
+        logger.info("no robots.txt found")
+        sitemaps.append(url)
+        return sitemaps
+
     robotData = clankerData.text.splitlines()
-    sitemaps = []
 
     # This may seem redundant, but if a website has multiple Sitemaps in robots.txt this can handle it
     for i in range(len(robotData)):
-
         if robotData[i].__contains__("Sitemap"):
             siteUrl = (robotData[i].split(" "))[1]
             sitemapsindex = requests.get(siteUrl).text
 
             if sitemapsindex.splitlines()[1].__contains__("sitemapindex"):
-                sitemapssss = re.findall(regexHttps, sitemapsindex)
+                sitemapindexLinks = re.findall(regexHttps, sitemapsindex)
 
-                for j in range(len(sitemapssss)):
+                for j in range(len(sitemapindexLinks)):
                     # We are asuming all .xml files are sitemaps (may cause issues later)
-                    if sitemapssss[j][1].__contains__(".xml"):
+                    if sitemapindexLinks[j][1].__contains__(".xml"):
                         sitemaps.extend(
-                            extractUrlsFromSitemapIndex(url + sitemapssss[j][1], url, 0)
+                            extractUrlsFromSitemapIndex(url + sitemapindexLinks[j][1], url, 0)
                         )
 
     sitemaps = list(set(sitemaps)) # Removes duplicates
-    logger.info(sitemaps) #uncomment for debugging
-    print(len(sitemaps)) #uncomment for debugging
+
+    logger.debug(sitemaps)
+    #print(len(sitemaps)) #uncomment for debugging
     return sitemaps
