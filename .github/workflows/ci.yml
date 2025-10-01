@@ -1,0 +1,46 @@
+name: CI pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+
+    - name: Install uv
+      run: |
+        pip install uv
+
+    - name: Sync project dependencies
+      run: |
+        uv sync
+
+    - name: Install PyInstaller 
+      run: |
+        uv pip install pyinstaller
+
+    - name: Install Playwright browsers
+      run: |
+        uv run playwright install --with-deps
+
+    - name: Build executable with PyInstaller
+      run: |
+        uv run pyinstaller --onefile --noconsole main.py
+
+    - name: Upload executable artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: compiled-program
+        path: dist/main.exe
