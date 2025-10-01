@@ -37,7 +37,7 @@ jobs:
 
     - name: Build executable with PyInstaller
       run: |
-        uv run pyinstaller --onefile --noconsole main.py
+        uv run pyinstaller --onefile --noconsole main.py --collect-data axe_core_python
 
     - name: Upload executable artifact
       uses: actions/upload-artifact@v4
