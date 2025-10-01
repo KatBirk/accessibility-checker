@@ -9,12 +9,19 @@ import logging
 from stopwatch import Stopwatch
 import sitemap
 from tkinter import Button, messagebox
+import webbrowser
+import threading
+import http.server
+import socketserver
 
 logger = logging.getLogger("main")
 logging.basicConfig(filename="myapp.log", level=logging.DEBUG)
 
 # Used for time estimation
 stopwatch = Stopwatch()
+
+
+
 websiteToBESCANNED = ""
 violations = 0
 vioCount = 0
@@ -27,12 +34,24 @@ def testWebsite(url):
         page.goto(url)
         results = axe.run(page)
         browser.close()
-        global violations
+        global violationsparser
         violations = results["violations"]
         with open("violations.json", "w") as f:
             json.dump(violations, f, indent=4)
         return len(violations)
 
+
+        html_url = f"http://localhost:8000/report.html"
+        webbrowser.open(html_url)
+
+
+
+def start_server(port=8000):
+    handler = http.server.SimpleHTTPRequestHandler
+    httpd = socketserver.TCPServer(("", port), handler)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    return httpd
 
 def start_progress():
     logger.debug("progress bar started")
@@ -120,7 +139,6 @@ def show_main_window(version="free"):
 
     start_button = tk.Button(root, text="Start Progress", command=start_progress)
     start_button.pack(pady=10)
-
     axe = Axe()
     urls = [
         "https://www.google.com/",
@@ -137,6 +155,7 @@ def show_main_window(version="free"):
     combo_box = ttk.Combobox(root, values=urls, state="readonly")
     combo_box.pack(pady=5)
     combo_box.set("Please Select website")
+
 
     def select(event):
         selected_item = combo_box.get()
@@ -157,4 +176,7 @@ def show_main_window(version="free"):
 
 if __name__ == "__main__":
     import login
+
+    server = start_server(port=8000)  # serves current folder
+
     login.show_login()
