@@ -41,7 +41,7 @@ def sitemapsFromUrl(url):
     clankerUrl = url + "/robots.txt"
     clankerData = requests.get(clankerUrl)
 
-    if !(clankerData.ok):
+    if not clankerData.ok:
         logger.info("no robots.txt found")
         sitemaps.append(url)
         return sitemaps
