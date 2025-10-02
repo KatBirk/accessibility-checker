@@ -5,7 +5,7 @@ import time
 import tkinter as tk
 from tkinter import *
 from tkinter import ttk
-import logging
+import os, sys, logging
 from stopwatch import Stopwatch
 import sitemap
 from tkinter import Button, messagebox
@@ -14,8 +14,22 @@ import threading
 import http.server
 import socketserver
 
+# Set up myapp.log
+if getattr(sys, 'frozen', False):  # place log in the same folder as the exe
+    base_dir = sys._MEIPASS if hasattr(sys, "_MEIPASS") else os.path.dirname(sys.executable)
+else:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+
+log_file = os.path.join(base_dir, "myapp.log")
+
+logging.basicConfig(
+    filename=log_file,
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
 logger = logging.getLogger("main")
-logging.basicConfig(filename="myapp.log", level=logging.DEBUG)
+
 
 # Used for time estimation
 stopwatch = Stopwatch()
