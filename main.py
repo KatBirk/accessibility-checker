@@ -229,7 +229,7 @@ def show_main_window(version="free"):
         "https://www.op.europa.eu/en/web/webguide/",
         "https://www.github.com/",
         "https://www.wikipedia.org/",
-        "https://www.sdu.dk/en",
+        "https://www.sdu.dk/",
     ]
     label = tk.Label(root, text="Selected Item: ")
     label.pack(pady=10)
