@@ -57,10 +57,23 @@ class TestCompleteWorkflows:
                 assert main.vioCount >= 0  # Should have processed violations
                 assert os.path.exists("violations.json")  # Last scan should create JSON
                 
-                # Verify JSON structure
+                # Verify JSON structure and privacy compliance
                 with open("violations.json", "r") as f:
                     data = json.load(f)
                 assert isinstance(data, list)
+                
+                # PRIVACY VALIDATION
+                if len(data) > 0:
+                    json_str = json.dumps(data)
+                    # These shouldn't appear in violation data from real sites
+                    assert "<html>" not in json_str, "Should not store HTML structure"
+                    assert "<head>" not in json_str, "Should not store head content"
+                    assert "<body>" not in json_str, "Should not store body content"
+                    
+                    # Verify violations have proper WCAG structure
+                    violation = data[0]
+                    assert "id" in violation, "Violations should have WCAG rule ID"
+                    assert "impact" in violation, "Violations should have severity impact"
                 
             except Exception as e:
                 pytest.skip(f"Pipeline test skipped due to network/browser issue: {e}")
@@ -103,12 +116,19 @@ class TestRealBrowserIntegration:
             assert isinstance(data, list), "JSON should contain a list"
             assert len(data) == count, "JSON length should match returned count"
             
-            # If violations found, verify basic structure
+            # If violations found, verify basic structure and privacy compliance
             if count > 0:
                 violation = data[0]
                 assert "id" in violation, "Violation should have id"
                 assert "impact" in violation, "Violation should have impact"
                 assert violation["impact"] in ["minor", "moderate", "serious", "critical"], "Impact should be valid"
+                
+                # PRIVACY VALIDATION
+                json_str = json.dumps(data)
+                # Should not contain full page content from playwright.dev
+                assert "<!DOCTYPE html>" not in json_str, "Should not store DOCTYPE declarations"
+                assert "<html" not in json_str or json_str.count("<html") <= len(data), "Should only store violation HTML snippets"
+                assert "playwright" not in json_str.lower() or "playwright.dev" not in json_str, "Should not store site-specific content"
                 
         except Exception as e:
             pytest.skip(f"Integration test skipped due to network/browser issue: {e}")
@@ -159,5 +179,19 @@ class TestRealBrowserIntegration:
                 
                 assert sum(severity_count.values()) == count, "Severity grouping should match total count"
                 
+                # PRIVACY VALIDATION - Ensure no full page content from berkshirehathaway.com
+                json_str = json.dumps(data)
+                # Check for page structure that shouldn't be stored (vs. violation-specific HTML snippets)
+                assert "<!DOCTYPE html>" not in json_str, "Should not store DOCTYPE declarations"
+                assert "<head>" not in json_str, "Should not store head content"
+                assert "<body>" not in json_str, "Should not store body content"
+                assert "<title>" not in json_str, "Should not store page titles"
+                
+                # Verify we're not storing massive HTML content (violation snippets should be small)
+                # Each violation can have multiple nodes, so we just check for reasonable bounds
+                html_occurrences = json_str.count("<html")
+                total_json_size = len(json_str)
+                assert total_json_size < 50000, "Violation report should not contain excessive HTML content"
+                
         except Exception as e:
-            pytest.skip(f"Integration test skipped due to network/browser issue: {e}")
+            pytest.skip(f"Integration test skipped due to network/browser issue: {type(e).__name__}: {e}")

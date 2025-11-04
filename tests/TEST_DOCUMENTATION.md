@@ -1,13 +1,11 @@
 # Test Documentation
 
-## What Are We Testing?
-
 - **Scanning websites** for accessibility issues (unit, functional, and integration approaches)
 - **Saving results** to JSON files properly  
 - **Counting violations** across multiple pages
-- **Handling errors** like timeouts and bad URLs
+- **Privacy-by-design compliance** ensuring no sensitive page content is stored
 - **Server functionality** for displaying reports
-- **User interface logic** like URL selection and progress tracking
+- **End-to-end sitemap discovery to violation reporting** workflows
 
 ---
 
@@ -16,13 +14,16 @@
 Run from the `accessibility-checker` directory:
 
 ```bash
-# Run all tests (7 tests, ~20 seconds)
+# Run all tests (6 tests, ~20 seconds)
 pytest tests/ -v
 
-# Run only fast unit tests (2 tests, ~1 second)
+# Using python -m pytest
+python -m pytest tests/ -v
+
+# Run only fast unit tests
 pytest tests/test_unit.py -v
 
-# Run only functional tests (2 tests, ~1 second)  
+# Run only functional tests
 pytest tests/test_functional.py -v
 
 # Run only integration tests (3 tests, ~20 seconds - requires internet)
@@ -32,12 +33,8 @@ pytest tests/test_integration.py -v
 pytest tests/ --cov=main --cov-report=html
 ```
 
-**If the above doesn't work**, try these alternatives:
+**If the above doesn't work**, try specific Python path:
 ```bash
-# Using python -m pytest
-python -m pytest tests/ -v
-
-# Or with specific Python path like this
 C:/Python312/python.exe -m pytest tests/ -v
 ```
 
@@ -53,25 +50,22 @@ C:/Python312/python.exe -m pytest tests/ -v
 
 ---
 
-## test_functional.py - Functional Tests (2 tests)
+## test_functional.py - Functional Tests (1 test)
 
-**Real functions with mocked dependencies - test actual main.py logic**
-
-### `TestMainFunctions` (2 tests)
-* `test_testWebsite_full_workflow`: Tests complete `testWebsite()` workflow with mocked playwright, verifies browser lifecycle, JSON output, and violation structure
-* `test_start_progress_workflow_integration`: Tests the complete `start_progress()` function workflow - sitemap fetching, URL processing, violation aggregation, and GUI updates
+### `TestMainFunctions` (1 test)
+* `test_testWebsite_full_workflow`: Tests complete `testWebsite()` workflow with mocked playwright, verifies browser lifecycle, JSON output, violation structure, and privacy compliance that ensures no sensitive page content is stored in violation reports
 
 ---
 
 ## test_integration.py - Integration Tests (3 tests)
 
-**Real browser automation with actual network calls - end-to-end testing**
+**Real browser automation with network calls - end-to-end testing**
 
 ### `TestCompleteWorkflows` (1 test)
-* `test_sitemap_to_violations_pipeline`: Tests complete pipeline from sitemap parsing to violation aggregation to JSON output
+* `test_sitemap_to_violations_pipeline`: Tests complete pipeline from sitemap parsing to violation aggregation to JSON output, with privacy validation
 
 ### `TestRealBrowserIntegration` (2 tests)
-* `test_real_browser_scan_reliable_page`: Full browser automation scanning reliable website (playwright.dev)
+* `test_real_browser_scan_reliable_page`: Full browser automation scanning reliable website (playwright.dev), with privacy compliance checks
 * `test_real_browser_scan_complex_page`: Tests complex page with potential accessibility issues (berkshirehathaway.com)
 
 **Note**: Integration tests require internet connection and take longer

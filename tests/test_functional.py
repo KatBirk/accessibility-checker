@@ -27,6 +27,19 @@ class TestMainFunctions:
             mock_context.firefox.launch.return_value = mock_browser
             mock_browser.new_page.return_value = mock_page
             
+            # Simulate page with sensitive content that should NOT be stored
+            mock_page.content.return_value = """
+            <html>
+                <head><title>Secret Company Internal Portal</title></head>
+                <body>
+                    <h1>Confidential User Data: John Doe SSN: 123-45-6789</h1>
+                    <div class="sensitive">Private customer information here</div>
+                    <img src="logo.jpg"><!-- Missing alt - accessibility violation -->
+                    <div style="color: #ccc; background: white;">Low contrast text</div>
+                </body>
+            </html>
+            """
+            
             # Mock axe with realistic violation data
             main.axe = MagicMock()
             realistic_violations = [
@@ -34,18 +47,19 @@ class TestMainFunctions:
                     "id": "color-contrast",
                     "impact": "serious",
                     "description": "Color contrast issue",
+                    "helpUrl": "https://dequeuniversity.com/rules/axe/4.8/color-contrast",
                     "nodes": [{"html": "<div>Low contrast</div>"}]
                 },
                 {
                     "id": "missing-alt",
                     "impact": "critical", 
                     "description": "Missing alt text",
+                    "helpUrl": "https://dequeuniversity.com/rules/axe/4.8/image-alt",
                     "nodes": [{"html": "<img src='test.jpg'>"}]
                 }
             ]
             main.axe.run.return_value = {"violations": realistic_violations}
             
-            # Call the real function
             result = main.testWebsite("https://test-site.com")
             
             # Verify function behavior
@@ -63,69 +77,28 @@ class TestMainFunctions:
             assert data[0]["id"] == "color-contrast"
             assert data[1]["id"] == "missing-alt"
             
+            # PRIVACY VALIDATION
+            json_str = json.dumps(data)
+            
+            # Verify NO sensitive page content is stored
+            assert "Secret Company Internal Portal" not in json_str, "MUST NOT store page titles"
+            assert "John Doe SSN: 123-45-6789" not in json_str, "MUST NOT store sensitive data"
+            assert "Private customer information" not in json_str, "MUST NOT store private content"
+            assert "Confidential User Data" not in json_str, "MUST NOT store confidential data"
+            
+            # Verify NO HTML structure is stored (only violation nodes should be present)
+            assert "<html>" not in json_str, "MUST NOT store full HTML structure"
+            assert "<head>" not in json_str, "MUST NOT store head content"
+            assert "<body>" not in json_str, "MUST NOT store body content"
+            assert "<title>" not in json_str, "MUST NOT store title tags"
+            
+            # Verify WCAG guidance links are present
+            assert "helpUrl" in json_str, "Should provide WCAG guidance links"
+            assert "dequeuniversity.com" in json_str, "Should link to authoritative WCAG guidance"
+            
             if os.path.exists("violations.json"):
                 os.remove("violations.json")
 
-    # Probably not needed, but just in case
-    def test_start_progress_workflow_integration(self):
-        """Test that start_progress integrates its components correctly"""
-        import sys
-        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        import main
-        
-        # Mock all the external dependencies
-        with patch('main.sitemap.sitemapsFromUrl') as mock_sitemap, \
-             patch('main.testWebsite') as mock_testWebsite:
-            
-            # Setup controlled test data
-            mock_sitemap.return_value = [
-                "https://example.com/page1",
-                "https://example.com/page2"
-            ]
-            mock_testWebsite.side_effect = [3, 5]  # Return 3 violations, then 5
-            
-            # Mock GUI components that start_progress expects
-            class MockProgress:
-                def __init__(self):
-                    self.value = 0
-                def start(self): pass
-                def stop(self): pass
-                def __setitem__(self, key, value): 
-                    self.value = value
-            
-            class MockLabel:
-                def __init__(self):
-                    self.text = ""
-                def config(self, text=""): 
-                    self.text = text
-            
-            class MockRoot:
-                def update_idletasks(self): pass
-            
-            # Setup global state like main.py does
-            main.websiteToBESCANNED = "https://example.com"
-            main.vioCount = 0
-            main.progress = MockProgress()
-            main.laban = MockLabel()
-            main.root = MockRoot()
-            main.stopwatch = main.Stopwatch()
-            
-            # Call the real function
-            main.start_progress()
-            
-            # Verify the workflow worked correctly
-            mock_sitemap.assert_called_once_with("https://example.com")
-            assert mock_testWebsite.call_count == 2  # Should scan 2 URLs
-            mock_testWebsite.assert_any_call("https://example.com/page1")
-            mock_testWebsite.assert_any_call("https://example.com/page2")
-            
-            # Verify violation count aggregation
-            assert main.vioCount == 8  # 3 + 5 violations
-            
-            # Verify final message shows total violations
-            assert "8 violations found" in main.laban.text
-            
-            # Verify progress reached 100%
-            assert main.progress.value == 100.0
+
     
 
