@@ -9,11 +9,14 @@ from unittest.mock import patch, MagicMock
 class TestMainFunctions:
     """Test actual main.py functions with mocked dependencies"""
     
-    def test_testWebsite_full_workflow(self):
+    def test_testWebsite_full_workflow(self, tmp_path, monkeypatch):
         """Test the complete testWebsite function workflow"""
         import sys
         sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         import main
+        
+        # Run test in isolated temporary directory - won't affect user files
+        monkeypatch.chdir(tmp_path)
         
         # Use current directory, clean up test files manually
         # Mock playwright but use real function logic
@@ -96,9 +99,3 @@ class TestMainFunctions:
             assert "helpUrl" in json_str, "Should provide WCAG guidance links"
             assert "dequeuniversity.com" in json_str, "Should link to authoritative WCAG guidance"
             
-            if os.path.exists("violations.json"):
-                os.remove("violations.json")
-
-
-    
-

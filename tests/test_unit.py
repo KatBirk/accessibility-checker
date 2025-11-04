@@ -9,11 +9,14 @@ from unittest.mock import patch, MagicMock
 class TestBasicFunctions:
     """Test the few pure functions that actually exist in main.py"""
     
-    def test_testWebsite_returns_violation_count(self):
+    def test_testWebsite_returns_violation_count(self, tmp_path, monkeypatch):
         """Test that testWebsite returns integer count of violations"""
         import sys
         sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         import main
+        
+        # Run test in isolated temporary directory
+        monkeypatch.chdir(tmp_path)
         
         # Mock the entire playwright chain
         with patch('main.sync_playwright') as mock_playwright:
@@ -45,9 +48,6 @@ class TestBasicFunctions:
             # should create violations.json
             assert os.path.exists("violations.json")
             
-            # clean up test file
-            if os.path.exists("violations.json"):
-                os.remove("violations.json")
     
     def test_start_server_creates_http_server(self):
         """Test that start_server creates an HTTP server"""
