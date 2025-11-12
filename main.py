@@ -3,11 +3,14 @@ from concurrent.futures import ThreadPoolExecutor
 import concurrent.futures
 from axe_core_python.sync_playwright import Axe
 import json
+import ranking
 import time
 import tkinter as tk
 from tkinter import *
 from tkinter import ttk
-import os, sys, logging
+import os
+import sys
+import logging
 from stopwatch import Stopwatch
 import sitemap
 from tkinter import Button, messagebox
@@ -15,11 +18,13 @@ import webbrowser
 import threading
 import http.server
 import socketserver
+from violationsHandler import ViolationsHandler
 
 # Set up myapp.log
 if getattr(sys, "frozen", False):  # place log in the same folder as the exe
     base_dir = (
-        sys._MEIPASS if hasattr(sys, "_MEIPASS") else os.path.dirname(sys.executable)
+        sys._MEIPASS if hasattr(
+            sys, "_MEIPASS") else os.path.dirname(sys.executable)
     )
 else:
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -42,6 +47,7 @@ stopwatch = Stopwatch()
 websiteToBESCANNED = ""
 violations = 0
 vioCount = 0
+vh = None
 
 
 def testWebsite(url):
@@ -52,10 +58,10 @@ def testWebsite(url):
         page.goto(url)
         results = axe.run(page)
         browser.close()
+        global vh
         global violations
         violations = results["violations"]
-        with open("violations.json", "w") as f:
-            json.dump(violations, f, indent=4)
+        vh.append_violation(violations)
         return len(violations)
         html_url = f"http://localhost:8000/report.html"
         webbrowser.open(html_url)
@@ -71,11 +77,14 @@ def start_server(port=8000):
 
 def start_progress():
     logger.debug("progress bar started")
+    global vh
+    vh = ViolationsHandler(websiteToBESCANNED)
+    vh._init_file()
     progress.start()
     global vioCount
     vioCount = 0
     data = sitemap.sitemapsFromUrl(websiteToBESCANNED)
-    data = data[:200]  # limit the amount of stuff to scan
+    data = data[:100]  # limit the amount of stuff to scan
     total_urls = len(data)
     if total_urls == 0:
         logger.debug("No URLs to process.")
@@ -87,8 +96,9 @@ def start_progress():
     total_time_elapsed = 0.0
     # Note that too many worker threads will make your computer freeze or google flags you
     # Not talking from experince
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        future_to_url = {executor.submit(testWebsite, url): url for url in data}
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        future_to_url = {executor.submit(
+            testWebsite, url): url for url in data}
 
         # Iterate over completed futures
         for future in concurrent.futures.as_completed(future_to_url):
@@ -120,14 +130,17 @@ def start_progress():
                 if avg_time_per_url > 0:
                     remaining_urls = total_urls - urls_processed
                     estimated_remaining_seconds = remaining_urls * avg_time_per_url
-                    estimated_remaining_minutes = int(estimated_remaining_seconds / 60)
+                    estimated_remaining_minutes = int(
+                        estimated_remaining_seconds / 60)
 
                     laban.config(
-                        text=f"estimated time: {estimated_remaining_minutes} min "
+                        text=f"estimated time: {
+                            estimated_remaining_minutes} min "
                     )
                 else:
                     laban.config(
-                        text=f"Progressing... {urls_processed}/{total_urls} URLs"
+                        text=f"Progressing... {
+                            urls_processed}/{total_urls} URLs"
                     )
 
                 root.update_idletasks()  # Ensures GUI updates are drawn
@@ -139,6 +152,8 @@ def start_progress():
     root.update_idletasks()  # Ensures GUI updates are drawn
 
     laban.config(text=f"{vioCount} violations found.")
+    vh.ranking()
+    vh.getRankings()
     progress.stop()
 
 
@@ -218,7 +233,8 @@ def show_main_window(version="free"):
     )
     progress.pack(pady=20)
 
-    start_button = tk.Button(root, text="Start Progress", command=start_progress)
+    start_button = tk.Button(
+        root, text="Start Progress", command=start_progress)
     start_button.pack(pady=10)
     axe = Axe()
     urls = [
