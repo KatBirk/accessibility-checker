@@ -2,7 +2,6 @@ import json
 import Severity
 import os
 import re
-import ranking
 from typing import List, Dict, Any
 
 

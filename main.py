@@ -3,7 +3,6 @@ from concurrent.futures import ThreadPoolExecutor
 import concurrent.futures
 from axe_core_python.sync_playwright import Axe
 import json
-import ranking
 import time
 import tkinter as tk
 from tkinter import *
