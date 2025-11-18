@@ -55,15 +55,63 @@ class ViolationsHandler:
                 file_data = json.loads(data)
                 violations_list = file_data.get("all_violations", [])
 
+            # helper to map various impact strings to our Severity values
+            def impact_to_value(impact_str: str) -> int:
+                if not impact_str:
+                    return Severity.Severity.DEFAULT.value
+                s = impact_str.lower()
+                if s in ("critical", "fatal", "high"):
+                    return Severity.Severity.FATAL.value
+                if s in ("serious",):
+                    return Severity.Severity.SERIOUS.value
+                if s in ("moderate", "medium"):
+                    return Severity.Severity.MODERATE.value
+                if s in ("minor", "low"):
+                    return Severity.Severity.MINOR.value
+                # fallback
+                try:
+                    return Severity.Severity[s.upper()].value
+                except Exception:
+                    return Severity.Severity.DEFAULT.value
+
+            # aggregate scores by violation id
             for item in violations_list:
                 violation_id = item.get("id")
                 impact_str = item.get("impact")
-                severity_value = Severity.Severity[impact_str.upper()].value
-                if violation_id not in self.rankedViolations.keys():
-
+                severity_value = impact_to_value(impact_str)
+                if not violation_id:
+                    continue
+                if violation_id not in self.rankedViolations:
                     self.rankedViolations[violation_id] = severity_value
                 else:
                     self.rankedViolations[violation_id] += severity_value
+
+            # produce a sorted list of violations according to aggregated score
+            def score_of(v):
+                return self.rankedViolations.get(v.get("id"), 0)
+
+            sorted_violations = sorted(violations_list, key=score_of, reverse=True)
+
+            # assign rank per unique violation id (1 = highest score)
+            id_order = []
+            for v in sorted_violations:
+                vid = v.get("id")
+                if vid not in id_order:
+                    id_order.append(vid)
+
+            id_to_rank = {vid: idx + 1 for idx, vid in enumerate(id_order)}
+
+            for v in sorted_violations:
+                v_id = v.get("id")
+                v["rank"] = id_to_rank.get(v_id, 0)
+
+            # write a global violations.json that the report frontend expects
+            try:
+                with open("violations.json", "w") as gf:
+                    json.dump(sorted_violations, gf, indent=4)
+            except Exception as e:
+                print(f"Failed to write global violations.json: {e}")
+
             self.scoreboard()
 
     def getRankings(self):

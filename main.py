@@ -18,9 +18,10 @@ import threading
 import http.server
 import socketserver
 from violationsHandler import ViolationsHandler
+import re
 
 # Set up myapp.log
-if getattr(sys, "frozen", False):  # place log in the same folder as the exe
+if getattr(sys, "frozen", False):  
     base_dir = (
         sys._MEIPASS if hasattr(
             sys, "_MEIPASS") else os.path.dirname(sys.executable)
@@ -62,8 +63,7 @@ def testWebsite(url):
         violations = results["violations"]
         vh.append_violation(violations)
         return len(violations)
-        html_url = f"http://localhost:8000/report.html"
-        webbrowser.open(html_url)
+       
 
 
 def start_server(port=8000):
@@ -153,6 +153,8 @@ def start_progress():
     laban.config(text=f"{vioCount} violations found.")
     vh.ranking()
     vh.getRankings()
+    html_url = f"http://localhost:8000/report.html"
+    webbrowser.open(html_url)
     progress.stop()
 
 
@@ -236,29 +238,29 @@ def show_main_window(version="free"):
         root, text="Start Progress", command=start_progress)
     start_button.pack(pady=10)
     axe = Axe()
-    urls = [
-        "https://www.google.com/",
-        "https://www.berkshirehathaway.com/",
-        "https://www.microsoft.com/",
-        "https://www.playwright.dev/",
-        "https://www.op.europa.eu/en/web/webguide/",
-        "https://www.github.com/",
-        "https://www.wikipedia.org/",
-        "https://www.sdu.dk/",
-    ]
     label = tk.Label(root, text="Selected Item: ")
     label.pack(pady=10)
-    combo_box = ttk.Combobox(root, values=urls, state="readonly")
-    combo_box.pack(pady=5)
-    combo_box.set("Please Select website")
 
-    def select(event):
-        selected_item = combo_box.get()
+    entry = tk.Entry(root, width=40)
+    entry.pack(pady=5)
+    entry.insert(0, "example.com")
+
+    def set_website(event=None):
+        raw = entry.get().strip()
+        clean = re.sub(r'^(https?://)?(www\.)?', '', raw, flags=re.IGNORECASE)
+        clean = clean.rstrip('/')
+        if clean == '':
+            return
+        selected_item = f"https://www.{clean}"
         global websiteToBESCANNED
         websiteToBESCANNED = selected_item
         label.config(text="Selected Item: " + selected_item)
 
-    combo_box.bind("<<ComboboxSelected>>", select)
+    set_button = tk.Button(root, text="Set Website", command=set_website)
+    set_button.pack(pady=5)
+
+    # allow pressing Enter in the entry to set the website
+    entry.bind("<Return>", set_website)
     laban = tk.Label(root, text="")
     laban.pack(pady=10)
 
