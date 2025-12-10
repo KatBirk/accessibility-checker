@@ -15,7 +15,6 @@ class ViolationsHandler:
         self.file_path = self._sanitize_url(context_id)
 
     def _sanitize_url(self, url: str) -> str:
-        # made by GPT may contain bugs
         safe_name = re.sub(r'https?://(www\.)?', '', url).rstrip('/')
         safe_name = re.sub(r'[/?:&=.]', '_', safe_name)
         return safe_name[:200] + ".json"
