@@ -7,7 +7,9 @@ import time
 import tkinter as tk
 from tkinter import *
 from tkinter import ttk
-import os, sys, logging
+import os
+import sys
+import logging
 from stopwatch import Stopwatch
 import sitemap
 from tkinter import Button, messagebox
@@ -15,11 +17,14 @@ import webbrowser
 import threading
 import http.server
 import socketserver
+from violationsHandler import ViolationsHandler
+import re
 
 # Set up myapp.log
-if getattr(sys, "frozen", False):  # place log in the same folder as the exe
+if getattr(sys, "frozen", False):  
     base_dir = (
-        sys._MEIPASS if hasattr(sys, "_MEIPASS") else os.path.dirname(sys.executable)
+        sys._MEIPASS if hasattr(
+            sys, "_MEIPASS") else os.path.dirname(sys.executable)
     )
 else:
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -42,6 +47,7 @@ stopwatch = Stopwatch()
 websiteToBESCANNED = ""
 violations = 0
 vioCount = 0
+vh = None
 
 
 def testWebsite(url):
@@ -52,13 +58,12 @@ def testWebsite(url):
         page.goto(url)
         results = axe.run(page)
         browser.close()
+        global vh
         global violations
         violations = results["violations"]
-        with open("violations.json", "w") as f:
-            json.dump(violations, f, indent=4)
+        vh.append_violation(violations)
         return len(violations)
-        html_url = f"http://localhost:8000/report.html"
-        webbrowser.open(html_url)
+       
 
 
 def start_server(port=8000):
@@ -71,11 +76,14 @@ def start_server(port=8000):
 
 def start_progress():
     logger.debug("progress bar started")
+    global vh
+    vh = ViolationsHandler(websiteToBESCANNED)
+    vh._init_file()
     progress.start()
     global vioCount
     vioCount = 0
     data = sitemap.sitemapsFromUrl(websiteToBESCANNED)
-    data = data[:200]  # limit the amount of stuff to scan
+    data = data[:100]  # limit the amount of stuff to scan
     total_urls = len(data)
     if total_urls == 0:
         logger.debug("No URLs to process.")
@@ -87,8 +95,9 @@ def start_progress():
     total_time_elapsed = 0.0
     # Note that too many worker threads will make your computer freeze or google flags you
     # Not talking from experince
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        future_to_url = {executor.submit(testWebsite, url): url for url in data}
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        future_to_url = {executor.submit(
+            testWebsite, url): url for url in data}
 
         # Iterate over completed futures
         for future in concurrent.futures.as_completed(future_to_url):
@@ -120,14 +129,17 @@ def start_progress():
                 if avg_time_per_url > 0:
                     remaining_urls = total_urls - urls_processed
                     estimated_remaining_seconds = remaining_urls * avg_time_per_url
-                    estimated_remaining_minutes = int(estimated_remaining_seconds / 60)
+                    estimated_remaining_minutes = int(
+                        estimated_remaining_seconds / 60)
 
                     laban.config(
-                        text=f"estimated time: {estimated_remaining_minutes} min "
+                        text=f"estimated time: {
+                            estimated_remaining_minutes} min "
                     )
                 else:
                     laban.config(
-                        text=f"Progressing... {urls_processed}/{total_urls} URLs"
+                        text=f"Progressing... {
+                            urls_processed}/{total_urls} URLs"
                     )
 
                 root.update_idletasks()  # Ensures GUI updates are drawn
@@ -139,6 +151,10 @@ def start_progress():
     root.update_idletasks()  # Ensures GUI updates are drawn
 
     laban.config(text=f"{vioCount} violations found.")
+    vh.ranking()
+    vh.getRankings()
+    html_url = f"http://localhost:8000/report.html"
+    webbrowser.open(html_url)
     progress.stop()
 
 
@@ -218,32 +234,33 @@ def show_main_window(version="free"):
     )
     progress.pack(pady=20)
 
-    start_button = tk.Button(root, text="Start Progress", command=start_progress)
+    start_button = tk.Button(
+        root, text="Start Progress", command=start_progress)
     start_button.pack(pady=10)
     axe = Axe()
-    urls = [
-        "https://www.google.com/",
-        "https://www.berkshirehathaway.com/",
-        "https://www.microsoft.com/",
-        "https://www.playwright.dev/",
-        "https://www.op.europa.eu/en/web/webguide/",
-        "https://www.github.com/",
-        "https://www.wikipedia.org/",
-        "https://www.sdu.dk/",
-    ]
     label = tk.Label(root, text="Selected Item: ")
     label.pack(pady=10)
-    combo_box = ttk.Combobox(root, values=urls, state="readonly")
-    combo_box.pack(pady=5)
-    combo_box.set("Please Select website")
 
-    def select(event):
-        selected_item = combo_box.get()
+    entry = tk.Entry(root, width=40)
+    entry.pack(pady=5)
+    entry.insert(0, "example.com")
+
+    def set_website(event=None):
+        raw = entry.get().strip()
+        clean = re.sub(r'^(https?://)?(www\.)?', '', raw, flags=re.IGNORECASE)
+        clean = clean.rstrip('/')
+        if clean == '':
+            return
+        selected_item = f"https://www.{clean}"
         global websiteToBESCANNED
         websiteToBESCANNED = selected_item
         label.config(text="Selected Item: " + selected_item)
 
-    combo_box.bind("<<ComboboxSelected>>", select)
+    set_button = tk.Button(root, text="Set Website", command=set_website)
+    set_button.pack(pady=5)
+
+    # allow pressing Enter in the entry to set the website
+    entry.bind("<Return>", set_website)
     laban = tk.Label(root, text="")
     laban.pack(pady=10)
 
